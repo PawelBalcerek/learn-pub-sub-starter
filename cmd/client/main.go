@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -14,9 +11,6 @@ import (
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
 	log.Println("Starting Peril client...")
 
 	log.Println("Connecting to RabbitMQ....")
@@ -44,7 +38,34 @@ func main() {
 		log.Panicf("Failed to declare and bind queue: %v", err)
 	}
 
-	<-ctx.Done()
+	gameState := gamelogic.NewGameState(username)
 
-	log.Println("Peril client is shutting down...")
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+
+		switch words[0] {
+		case "spawn":
+			if err := gameState.CommandSpawn(words); err != nil {
+				log.Printf("spawn command failed: %v", err)
+			}
+		case "move":
+			if _, err := gameState.CommandMove(words); err != nil {
+				log.Printf("move command failed: %v", err)
+			}
+		case "status":
+			gameState.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			log.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			log.Println("No such command")
+		}
+	}
 }

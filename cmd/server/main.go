@@ -48,6 +48,7 @@ func main() {
 			}
 		case "quit":
 			log.Println("Peril server is shutting down...")
+			return
 		default:
 			log.Println("No such command")
 		}
