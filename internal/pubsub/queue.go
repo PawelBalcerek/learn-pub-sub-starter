@@ -9,8 +9,8 @@ import (
 type SimpleQueueType int
 
 const (
-	Transient SimpleQueueType = iota
-	Durable
+	TransientQueue SimpleQueueType = iota
+	DurableQueue
 )
 
 func DeclareAndBindQueue(
@@ -43,9 +43,9 @@ func DeclareAndBindQueue(
 
 func (s SimpleQueueType) isDurable() bool {
 	switch s {
-	case Durable:
+	case DurableQueue:
 		return true
-	case Transient:
+	case TransientQueue:
 		return false
 	default:
 		return false
@@ -54,9 +54,9 @@ func (s SimpleQueueType) isDurable() bool {
 
 func (s SimpleQueueType) autoDelete() bool {
 	switch s {
-	case Durable:
+	case DurableQueue:
 		return false
-	case Transient:
+	case TransientQueue:
 		return true
 	default:
 		return false
@@ -65,9 +65,9 @@ func (s SimpleQueueType) autoDelete() bool {
 
 func (s SimpleQueueType) exclusive() bool {
 	switch s {
-	case Durable:
+	case DurableQueue:
 		return false
-	case Transient:
+	case TransientQueue:
 		return true
 	default:
 		return false

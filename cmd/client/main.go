@@ -31,7 +31,7 @@ func main() {
 	if _, _, err := pubsub.DeclareAndBindQueue(
 		connection,
 		fmt.Sprintf("pause.%s", username),
-		pubsub.Transient,
+		pubsub.TransientQueue,
 		"peril_direct",
 		routing.PauseKey,
 	); err != nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
@@ -22,7 +23,13 @@ func main() {
 
 	log.Println("Connected to RabbitMQ successfully.")
 
-	channel, err := connection.Channel()
+	channel, _, err := pubsub.DeclareAndBindQueue(
+		connection,
+		routing.GameLogSlug,
+		pubsub.DurableQueue,
+		routing.ExchangePerilTopic,
+		fmt.Sprintf("%s.*", routing.GameLogSlug),
+	)
 	if err != nil {
 		log.Panicf("Failed to create a RabbitMQ channel: %v", err)
 	}
