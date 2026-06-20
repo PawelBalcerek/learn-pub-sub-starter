@@ -1,20 +1,15 @@
 package main
 
 import (
-	"context"
 	"log"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
 	log.Println("Starting Peril server...")
 
 	log.Println("Connecting to RabbitMQ....")
@@ -31,18 +26,39 @@ func main() {
 	if err != nil {
 		log.Panicf("Failed to create a RabbitMQ channel: %v", err)
 	}
-	if err := pubsub.PublishJSON(
-		channel,
+
+	gamelogic.PrintServerHelp()
+
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+
+		switch words[0] {
+		case "pause":
+			log.Println("Sending a pause message")
+			if err := sendPausedState(channel, true); err != nil {
+				log.Panicf("Failed to publish pause message: %v", err)
+			}
+		case "resume":
+			log.Println("Sending a resume message")
+			if err := sendPausedState(channel, false); err != nil {
+				log.Panicf("Failed to publish resume message: %v", err)
+			}
+		case "quit":
+			log.Println("Peril server is shutting down...")
+		default:
+			log.Println("No such command")
+		}
+	}
+}
+
+func sendPausedState(ch *amqp.Channel, isPaused bool) error {
+	return pubsub.PublishJSON(
+		ch,
 		routing.ExchangePerilDirect,
 		routing.PauseKey,
-		routing.PlayingState{
-			IsPaused: true,
-		},
-	); err != nil {
-		log.Panicf("Failed to publish pause msg: %v", err)
-	}
-
-	<-ctx.Done()
-
-	log.Println("Peril server is shutting down...")
+		routing.PlayingState{IsPaused: isPaused},
+	)
 }
