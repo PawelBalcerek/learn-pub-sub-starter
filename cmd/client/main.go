@@ -28,17 +28,18 @@ func main() {
 		log.Panicf("Failed to obtain username: %v", err)
 	}
 
-	if _, _, err := pubsub.DeclareAndBindQueue(
+	gameState := gamelogic.NewGameState(username)
+
+	if err := pubsub.SubscribeJSON(
 		connection,
 		fmt.Sprintf("pause.%s", username),
 		pubsub.TransientQueue,
-		"peril_direct",
+		routing.ExchangePerilDirect,
 		routing.PauseKey,
+		pauseHandler(gameState),
 	); err != nil {
 		log.Panicf("Failed to declare and bind queue: %v", err)
 	}
-
-	gameState := gamelogic.NewGameState(username)
 
 	for {
 		words := gamelogic.GetInput()
@@ -67,5 +68,13 @@ func main() {
 		default:
 			log.Println("No such command")
 		}
+	}
+}
+
+func pauseHandler(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		defer fmt.Print("> ")
+
+		gs.HandlePause(ps)
 	}
 }
