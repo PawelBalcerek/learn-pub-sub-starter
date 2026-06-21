@@ -17,28 +17,46 @@ func main() {
 
 	connection, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
-		log.Panicf("Failed to dial RabbitMQ: %v", err)
+		log.Fatalf("Failed to dial RabbitMQ: %v", err)
 	}
 	defer connection.Close()
+	channel, err := connection.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open RabbitMQ channel: %v", err)
+	}
 
 	log.Println("Connected to RabbitMQ successfully.")
 
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
-		log.Panicf("Failed to obtain username: %v", err)
+		log.Fatalf("Failed to obtain username: %v", err)
 	}
 
 	gameState := gamelogic.NewGameState(username)
 
+	pauseQueue := fmt.Sprintf("pause.%s", username)
 	if err := pubsub.SubscribeJSON(
 		connection,
-		fmt.Sprintf("pause.%s", username),
+		pauseQueue,
 		pubsub.TransientQueue,
 		routing.ExchangePerilDirect,
 		routing.PauseKey,
 		pauseHandler(gameState),
 	); err != nil {
-		log.Panicf("Failed to declare and bind queue: %v", err)
+		log.Fatalf("Failed to declare and bind %s queue: %v", pauseQueue, err)
+	}
+
+	armyMovesQueue := fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, username)
+	armyMovesKey := fmt.Sprintf("%s.*", routing.ArmyMovesPrefix)
+	if err := pubsub.SubscribeJSON(
+		connection,
+		armyMovesQueue,
+		pubsub.TransientQueue,
+		routing.ExchangePerilTopic,
+		armyMovesKey,
+		armyMovesHandler(gameState),
+	); err != nil {
+		log.Fatalf("Failed to declare and bind %s queue: %v", armyMovesQueue, err)
 	}
 
 	for {
@@ -50,12 +68,22 @@ func main() {
 		switch words[0] {
 		case "spawn":
 			if err := gameState.CommandSpawn(words); err != nil {
-				log.Printf("spawn command failed: %v", err)
+				log.Printf("Spawn command has failed: %v", err)
 			}
 		case "move":
-			if _, err := gameState.CommandMove(words); err != nil {
-				log.Printf("move command failed: %v", err)
+			armyMove, err := gameState.CommandMove(words)
+			if err != nil {
+				log.Printf("Move command has failed: %v", err)
 			}
+			if err := pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilTopic,
+				armyMovesKey,
+				armyMove,
+			); err != nil {
+				log.Printf("Failed to publish army move: %v", err)
+			}
+			log.Printf("Successfuly published army move.")
 		case "status":
 			gameState.CommandStatus()
 		case "help":
@@ -76,5 +104,13 @@ func pauseHandler(gs *gamelogic.GameState) func(routing.PlayingState) {
 		defer fmt.Print("> ")
 
 		gs.HandlePause(ps)
+	}
+}
+
+func armyMovesHandler(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+	return func(am gamelogic.ArmyMove) {
+		defer fmt.Print("> ")
+
+		gs.HandleMove(am)
 	}
 }
