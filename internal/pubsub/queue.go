@@ -30,7 +30,7 @@ func DeclareAndBindQueue(
 		queueType.autoDelete(),
 		queueType.exclusive(),
 		false,
-		nil,
+		amqp.Table{"x-dead-letter-exchange": "peril_dlx"},
 	)
 	if err != nil {
 		return &amqp.Channel{}, amqp.Queue{}, fmt.Errorf("failed to declare queue: %w", err)
