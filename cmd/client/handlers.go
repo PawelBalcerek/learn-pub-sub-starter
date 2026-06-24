@@ -40,8 +40,9 @@ func armyMovesHandler(gs *gamelogic.GameState, channel *amqp.Channel) func(gamel
 				},
 			); err != nil {
 				log.Printf("Failed to publish recognition of war: %v", err)
+				return pubsub.NackRequeue
 			}
-			return pubsub.NackRequeue
+			return pubsub.Ack
 		default:
 			log.Println("Unknown move outcome")
 			return pubsub.NackDiscard
