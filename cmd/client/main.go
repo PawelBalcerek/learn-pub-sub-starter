@@ -67,7 +67,7 @@ func main() {
 		pubsub.DurableQueue,
 		routing.ExchangePerilTopic,
 		warKey,
-		warHandler(gameState),
+		warHandler(gameState, channel),
 	); err != nil {
 		log.Fatalf("Failed to declar and bind %s, queue: %v", warQueue, err)
 	}
@@ -82,11 +82,13 @@ func main() {
 		case "spawn":
 			if err := gameState.CommandSpawn(words); err != nil {
 				log.Printf("Spawn command has failed: %v", err)
+				continue
 			}
 		case "move":
 			armyMove, err := gameState.CommandMove(words)
 			if err != nil {
 				log.Printf("Move command has failed: %v", err)
+				continue
 			}
 			if err := pubsub.PublishJSON(
 				channel,
@@ -95,6 +97,7 @@ func main() {
 				armyMove,
 			); err != nil {
 				log.Printf("Failed to publish army move: %v", err)
+				continue
 			}
 			log.Printf("Successfuly published army move.")
 		case "status":

@@ -54,6 +54,7 @@ func SubscribeJSON[T any](
 			var val T
 			if err := json.Unmarshal(msg.Body, &val); err != nil {
 				log.Printf("failed to unmarshal message body: %v", err)
+				continue
 			}
 
 			const (
