@@ -20,18 +20,22 @@ func main() {
 		log.Panicf("Failed to dial RabbitMQ: %v", err)
 	}
 	defer connection.Close()
+	channel, err := connection.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open RabbitMQ channel: %v", err)
+	}
 
 	log.Println("Connected to RabbitMQ successfully.")
 
-	channel, _, err := pubsub.DeclareAndBindQueue(
+	if err := pubsub.SubscribeGob(
 		connection,
 		routing.GameLogSlug,
 		pubsub.DurableQueue,
 		routing.ExchangePerilTopic,
 		fmt.Sprintf("%s.*", routing.GameLogSlug),
-	)
-	if err != nil {
-		log.Panicf("Failed to create a RabbitMQ channel: %v", err)
+		handleGameLog(),
+	); err != nil {
+		log.Panicf("Failed to subscribe to game logs: %v", err)
 	}
 
 	gamelogic.PrintServerHelp()
@@ -69,4 +73,14 @@ func sendPausedState(ch *amqp.Channel, isPaused bool) error {
 		routing.PauseKey,
 		routing.PlayingState{IsPaused: isPaused},
 	)
+}
+
+func handleGameLog() func(routing.GameLog) pubsub.AckType {
+	return func(gl routing.GameLog) pubsub.AckType {
+		defer fmt.Print("> ")
+
+		gamelogic.WriteLog(gl)
+
+		return pubsub.Ack
+	}
 }
